@@ -6,7 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from app.config import settings, UPLOAD_DIR
 from app.database import engine, Base, SessionLocal
 from app.seed import seed_database
-from app.routers import auth, complaints, staff, admin, analytics, ai
+from app.routers import auth, complaints, staff, admin, analytics, ai, dashboard
 
 # Initialize tables
 Base.metadata.create_all(bind=engine)
@@ -50,6 +50,7 @@ app.include_router(staff.router, prefix=settings.API_PREFIX)
 app.include_router(admin.router, prefix=settings.API_PREFIX)
 app.include_router(analytics.router, prefix=settings.API_PREFIX)
 app.include_router(ai.router, prefix=settings.API_PREFIX)
+app.include_router(dashboard.router, prefix=settings.API_PREFIX)
 
 @app.get("/")
 def root():

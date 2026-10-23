@@ -24,7 +24,7 @@ export const api = {
     return res.json();
   },
 
-  async register(data: { email: string; password: string; full_name: string; phone?: string }) {
+  async register(data: { email: string; password: string; confirm_password?: string; full_name: string; phone?: string }) {
     const res = await fetch(`${API_BASE}/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -34,6 +34,15 @@ export const api = {
       const err = await res.json();
       throw new Error(err.detail || 'Registration failed');
     }
+    return res.json();
+  },
+
+  // Dashboard
+  async getDashboardSummary() {
+    const res = await fetch(`${API_BASE}/dashboard/my-summary`, {
+      headers: getAuthHeaders()
+    });
+    if (!res.ok) throw new Error('Failed to fetch dashboard summary');
     return res.json();
   },
 
@@ -52,10 +61,32 @@ export const api = {
   },
 
   async getMyComplaints() {
-    const res = await fetch(`${API_BASE}/complaints/my/list`, {
+    const res = await fetch(`${API_BASE}/complaints/mine`, {
       headers: getAuthHeaders()
     });
     if (!res.ok) throw new Error('Failed to fetch user complaints');
+    return res.json();
+  },
+
+  async getComplaint(idOrTracking: string | number) {
+    const res = await fetch(`${API_BASE}/complaints/${encodeURIComponent(idOrTracking)}`, {
+      headers: getAuthHeaders()
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.detail || 'Complaint not found');
+    }
+    return res.json();
+  },
+
+  async getComplaintHistory(idOrTracking: string | number) {
+    const res = await fetch(`${API_BASE}/complaints/${encodeURIComponent(idOrTracking)}/history`, {
+      headers: getAuthHeaders()
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.detail || 'Could not load complaint status history');
+    }
     return res.json();
   },
 
@@ -78,8 +109,28 @@ export const api = {
     });
     if (category) query.append('category', category);
 
-    const res = await fetch(`${API_BASE}/complaints/nearby/lookup?${query.toString()}`);
+    const res = await fetch(`${API_BASE}/complaints/nearby?${query.toString()}`);
     if (!res.ok) throw new Error('Failed to fetch nearby complaints');
+    return res.json();
+  },
+
+  // Dedicated Secure Photo Upload
+  async uploadPhoto(file: File) {
+    if (file.size > 5 * 1024 * 1024) {
+      throw new Error('Image exceeds 5 MB limit. Please select a smaller photo.');
+    }
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const res = await fetch(`${API_BASE}/complaints/upload-image`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: formData
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.detail || 'Image upload failed');
+    }
     return res.json();
   },
 

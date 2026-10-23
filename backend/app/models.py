@@ -2,7 +2,7 @@ import datetime
 from sqlalchemy import (
     Column, Integer, String, Float, Text, Boolean, DateTime, ForeignKey, UniqueConstraint, Index
 )
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, synonym
 from app.database import Base
 
 class User(Base):
@@ -48,6 +48,7 @@ class Complaint(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     tracking_number = Column(String(50), unique=True, index=True, nullable=False)  # e.g., CF-2026-000123
+    public_complaint_id = synonym("tracking_number")
     reporter_id = Column(Integer, ForeignKey("users.id"), nullable=True)  # nullable for anonymous if needed, but linked if logged in
     
     # Categorization
@@ -56,6 +57,7 @@ class Complaint(Base):
     title = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     image_url = Column(String(500), nullable=True)
+    image_path = synonym("image_url")
     
     # Geographic location
     latitude = Column(Float, index=True, nullable=False)
@@ -119,6 +121,7 @@ class ComplaintStatusHistory(Base):
     new_status = Column(String(50), nullable=False)
     changed_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     notes = Column(Text, nullable=True)
+    comment = synonym("notes")
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     complaint = relationship("Complaint", back_populates="status_history")

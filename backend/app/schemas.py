@@ -11,6 +11,7 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     password: str
+    confirm_password: Optional[str] = None
 
 class UserLogin(BaseModel):
     email: EmailStr
@@ -63,6 +64,7 @@ class ComplaintCreate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
     image_url: Optional[str] = None
+    image_path: Optional[str] = None
     latitude: float
     longitude: float
     address: str
@@ -71,10 +73,13 @@ class ComplaintCreate(BaseModel):
 
 class ComplaintStatusHistoryOut(BaseModel):
     id: int
-    previous_status: Optional[str]
+    complaint_id: Optional[int] = None
+    previous_status: Optional[str] = None
     new_status: str
-    changed_by_user_id: Optional[int]
-    notes: Optional[str]
+    changed_by_user_id: Optional[int] = None
+    changed_by: Optional[UserOut] = None
+    notes: Optional[str] = None
+    comment: Optional[str] = None
     created_at: datetime.datetime
 
     class Config:
@@ -105,12 +110,14 @@ class ComplaintConfirmationOut(BaseModel):
 class ComplaintOut(BaseModel):
     id: int
     tracking_number: str
+    public_complaint_id: Optional[str] = None
     reporter_id: Optional[int]
     category: str
     custom_category: Optional[str]
     title: str
     description: Optional[str]
     image_url: Optional[str]
+    image_path: Optional[str] = None
     latitude: float
     longitude: float
     address: str
@@ -141,6 +148,12 @@ class ComplaintOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+class CitizenDashboardSummary(BaseModel):
+    total_complaints: int
+    pending_complaints: int
+    resolved_complaints: int
+    recent_complaints: List[ComplaintOut] = []
 
 class ComplaintStatusUpdate(BaseModel):
     status: str  # submitted, under_review, assigned, in_progress, resolved, rejected

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MapPin, Filter, Navigation, Users, ArrowRight } from 'lucide-react';
+import { MapPin, Filter, Navigation, Users, ArrowRight, Shield } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../api/client';
@@ -16,9 +16,10 @@ export const NearbyProblemsPage: React.FC<NearbyProblemsPageProps> = ({ onNaviga
   const { isAuthenticated } = useAuth();
 
   const [coords, setCoords] = useState<{ lat: number; lon: number }>({
-    lat: 12.9716, // Bangalore default
+    lat: 12.9716, // Bangalore default center
     lon: 77.5946
   });
+  const [isLocating, setIsLocating] = useState(false);
   const [complaints, setComplaints] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [categoryFilter, setCategoryFilter] = useState<string>('');
@@ -37,22 +38,30 @@ export const NearbyProblemsPage: React.FC<NearbyProblemsPageProps> = ({ onNaviga
   };
 
   useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const lat = pos.coords.latitude;
-          const lon = pos.coords.longitude;
-          setCoords({ lat, lon });
-          fetchNearby(lat, lon, categoryFilter);
-        },
-        () => {
-          fetchNearby(coords.lat, coords.lon, categoryFilter);
-        }
-      );
-    } else {
-      fetchNearby(coords.lat, coords.lon, categoryFilter);
-    }
+    fetchNearby(coords.lat, coords.lon, categoryFilter);
   }, []);
+
+  const handleRequestLocation = () => {
+    if (!navigator.geolocation) {
+      alert("Geolocation is not supported by your browser.");
+      return;
+    }
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = pos.coords.latitude;
+        const lon = pos.coords.longitude;
+        setCoords({ lat, lon });
+        fetchNearby(lat, lon, categoryFilter);
+        setIsLocating(false);
+      },
+      (err) => {
+        setIsLocating(false);
+        alert("Location access denied or unavailable. Viewing default municipal center map.");
+      },
+      { timeout: 10000, enableHighAccuracy: true }
+    );
+  };
 
   const handleFilterChange = (cat: string) => {
     setCategoryFilter(cat);
@@ -79,20 +88,30 @@ export const NearbyProblemsPage: React.FC<NearbyProblemsPageProps> = ({ onNaviga
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
           <div>
             <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
-              {t.problemsNearMe}
+              View Problems Near Me
             </h1>
             <p className="text-sm text-slate-600">
-              Interactive map of reported issues in your neighborhood.
+              Interactive civic grievance map showing reported issues across your neighborhood.
             </p>
           </div>
 
-          {/* Category Filter Pills */}
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {/* GPS Locate Button */}
+            <button
+              onClick={handleRequestLocation}
+              disabled={isLocating}
+              className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all"
+            >
+              <Navigation className={`w-3.5 h-3.5 ${isLocating ? 'animate-spin' : ''}`} />
+              <span>{isLocating ? 'Locating...' : 'Use My GPS'}</span>
+            </button>
+
+            {/* Category Filter Pills */}
             {[
               { id: '', label: 'All Issues' },
               { id: 'pothole', label: '🛣️ Roads' },
-              { id: 'garbage', label: '🗑️ Waste' },
-              { id: 'streetlight', label: '💡 Lighting' },
+              { id: 'garbage', label: '🗑️ Garbage' },
+              { id: 'streetlight', label: '💡 Streetlights' },
               { id: 'water_leak', label: '💧 Water' }
             ].map((f) => (
               <button
@@ -100,7 +119,7 @@ export const NearbyProblemsPage: React.FC<NearbyProblemsPageProps> = ({ onNaviga
                 onClick={() => handleFilterChange(f.id)}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-sm ${
                   categoryFilter === f.id
-                    ? 'bg-emerald-600 text-white'
+                    ? 'bg-slate-900 text-white'
                     : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
                 }`}
               >
@@ -118,6 +137,7 @@ export const NearbyProblemsPage: React.FC<NearbyProblemsPageProps> = ({ onNaviga
               complaints={complaints}
               center={[coords.lat, coords.lon]}
               onSelectComplaint={(c) => setSelectedComplaint(c)}
+              onViewDetails={(tn) => onNavigate('track', { trackingNumber: tn })}
             />
           </div>
 
@@ -130,14 +150,14 @@ export const NearbyProblemsPage: React.FC<NearbyProblemsPageProps> = ({ onNaviga
             )}
 
             {!loading && complaints.length === 0 && (
-              <div className="p-8 text-center bg-white rounded-2xl border border-slate-200">
+              <div className="p-8 text-center bg-white rounded-2xl border border-slate-200 shadow-sm">
                 <p className="text-base font-bold text-slate-800">No issues found in this radius</p>
-                <p className="text-xs text-slate-500 mt-1">
-                  Your neighborhood looks clean and safe! If you spot an issue, be the first to report it.
+                <p className="text-xs text-slate-500 mt-1 mb-4">
+                  No grievances currently reported in this area. If you notice a broken road or overflowing garbage, report it!
                 </p>
                 <button
                   onClick={() => onNavigate('wizard')}
-                  className="mt-4 px-4 py-2 bg-emerald-600 text-white font-bold text-xs rounded-xl shadow-sm"
+                  className="px-4 py-2 bg-emerald-600 text-white font-bold text-xs rounded-xl shadow-sm"
                 >
                   Report a Problem
                 </button>
@@ -175,7 +195,7 @@ export const NearbyProblemsPage: React.FC<NearbyProblemsPageProps> = ({ onNaviga
                   )}
 
                   <p className="text-xs text-slate-600 line-clamp-2">
-                    {c.description || 'Reported civic issue.'}
+                    {c.description || 'Reported civic grievance.'}
                   </p>
 
                   <div className="flex items-center gap-1.5 text-xs text-slate-500">
@@ -203,10 +223,11 @@ export const NearbyProblemsPage: React.FC<NearbyProblemsPageProps> = ({ onNaviga
                           e.stopPropagation();
                           onNavigate('track', { trackingNumber: c.tracking_number });
                         }}
-                        className="p-1 text-slate-400 hover:text-slate-700"
+                        className="p-1.5 text-emerald-700 hover:bg-emerald-50 rounded-lg text-xs font-bold flex items-center gap-1"
                         title="View Full Tracking Details"
                       >
-                        <ArrowRight className="w-4 h-4" />
+                        <span>Details</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>

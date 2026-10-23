@@ -11,7 +11,30 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 @router.post("/register", response_model=Token, status_code=status.HTTP_201_CREATED)
 def register(user_in: UserCreate, db: Session = Depends(get_db)):
-    existing = db.query(User).filter(User.email == user_in.email).first()
+    # Validate full name
+    cleaned_name = user_in.full_name.strip()
+    if len(cleaned_name) < 2:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Full name must be at least 2 characters."
+        )
+
+    # Validate password length
+    if len(user_in.password) < 6:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password must be at least 6 characters long."
+        )
+
+    # Validate confirm password if provided
+    if user_in.confirm_password is not None and user_in.password != user_in.confirm_password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Passwords do not match. Please verify your password."
+        )
+
+    clean_email = user_in.email.strip().lower()
+    existing = db.query(User).filter(User.email.ilike(clean_email)).first()
     if existing:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -23,11 +46,11 @@ def register(user_in: UserCreate, db: Session = Depends(get_db)):
     
     hashed_pwd = get_password_hash(user_in.password)
     user = User(
-        email=user_in.email,
-        full_name=user_in.full_name,
+        email=clean_email,
+        full_name=cleaned_name,
         hashed_password=hashed_pwd,
         role=role,
-        phone=user_in.phone,
+        phone=user_in.phone.strip() if user_in.phone else None,
         is_active=True
     )
     db.add(user)
