@@ -48,6 +48,13 @@ class DepartmentBase(BaseModel):
 class DepartmentCreate(DepartmentBase):
     pass
 
+class DepartmentUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    contact_email: Optional[EmailStr] = None
+    icon: Optional[str] = None
+    is_active: Optional[bool] = None
+
 class DepartmentOut(DepartmentBase):
     id: int
     is_active: bool
@@ -138,9 +145,11 @@ class ComplaintOut(BaseModel):
     created_at: datetime.datetime
     updated_at: datetime.datetime
     resolved_at: Optional[datetime.datetime]
+    due_date: Optional[datetime.datetime] = None
     
     # Nested relations summary
     assigned_department: Optional[DepartmentOut] = None
+    assigned_staff: Optional[UserOut] = None
     confirmations_count: Optional[int] = 0
     has_confirmed: Optional[bool] = False
     status_history: Optional[List[ComplaintStatusHistoryOut]] = []
@@ -149,20 +158,48 @@ class ComplaintOut(BaseModel):
     class Config:
         from_attributes = True
 
+class PaginatedComplaintsOut(BaseModel):
+    total: int
+    page: int
+    page_size: int
+    items: List[ComplaintOut]
+
 class CitizenDashboardSummary(BaseModel):
     total_complaints: int
     pending_complaints: int
     resolved_complaints: int
     recent_complaints: List[ComplaintOut] = []
 
+class StaffDashboardSummary(BaseModel):
+    total_assigned: int
+    new_awaiting_review: int
+    high_priority: int
+    in_progress: int
+    resolved: int
+    overdue: int
+
 class ComplaintStatusUpdate(BaseModel):
     status: str  # submitted, under_review, assigned, in_progress, resolved, rejected
     notes: Optional[str] = None
+
+class ComplaintNoteCreate(BaseModel):
+    note: str
 
 class ComplaintAssignmentUpdate(BaseModel):
     department_id: Optional[int] = None
     staff_id: Optional[int] = None
     notes: Optional[str] = None
+    due_date: Optional[datetime.datetime] = None
+
+class UserUpdate(BaseModel):
+    full_name: Optional[str] = None
+    phone: Optional[str] = None
+
+class UserStatusUpdate(BaseModel):
+    is_active: bool
+
+class UserDepartmentUpdate(BaseModel):
+    department_id: Optional[int] = None
 
 class PriorityOverrideRequest(BaseModel):
     severity_score: Optional[float] = None

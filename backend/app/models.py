@@ -88,6 +88,7 @@ class Complaint(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow, index=True)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
     resolved_at = Column(DateTime, nullable=True)
+    due_date = Column(DateTime, nullable=True)
 
     # Relationships
     reporter = relationship("User", foreign_keys=[reporter_id], back_populates="reported_complaints")

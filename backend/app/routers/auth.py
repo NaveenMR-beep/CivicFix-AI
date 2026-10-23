@@ -91,3 +91,29 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db:
 @router.get("/me", response_model=UserOut)
 def read_current_user(current_user: User = Depends(get_current_user)):
     return current_user
+
+@router.patch("/profile", response_model=UserOut)
+def update_profile(
+    payload: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    # Explicitly prohibit role self-elevation (Section 8 requirement)
+    if "role" in payload and payload["role"] != current_user.role:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Users are not permitted to change their own role. Please contact an administrator."
+        )
+
+    if "full_name" in payload and payload["full_name"]:
+        cleaned = payload["full_name"].strip()
+        if len(cleaned) < 2:
+            raise HTTPException(status_code=400, detail="Full name must be at least 2 characters.")
+        current_user.full_name = cleaned
+
+    if "phone" in payload:
+        current_user.phone = payload["phone"].strip() if payload["phone"] else None
+
+    db.commit()
+    db.refresh(current_user)
+    return current_user

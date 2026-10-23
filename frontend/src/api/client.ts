@@ -202,17 +202,49 @@ export const api = {
   },
 
   // Staff Operations
-  async getStaffComplaints(filters?: { status?: string; priority?: string; search?: string; assigned_to_me?: boolean }) {
+  async getStaffDashboardSummary() {
+    const res = await fetch(`${API_BASE}/staff/dashboard-summary`, {
+      headers: getAuthHeaders()
+    });
+    if (!res.ok) throw new Error('Failed to load staff dashboard summary');
+    return res.json();
+  },
+
+  async getStaffComplaints(filters?: {
+    category?: string;
+    status?: string;
+    priority?: string;
+    department_id?: number;
+    date_from?: string;
+    date_to?: string;
+    search?: string;
+    assigned_to_me?: boolean;
+    sort_by?: string;
+    sort_order?: string;
+    skip?: number;
+    limit?: number;
+  }) {
     const query = new URLSearchParams();
+    if (filters?.category) query.append('category', filters.category);
     if (filters?.status) query.append('status', filters.status);
     if (filters?.priority) query.append('priority_level', filters.priority);
+    if (filters?.department_id) query.append('department_id', filters.department_id.toString());
+    if (filters?.date_from) query.append('date_from', filters.date_from);
+    if (filters?.date_to) query.append('date_to', filters.date_to);
     if (filters?.search) query.append('search', filters.search);
     if (filters?.assigned_to_me) query.append('assigned_to_me', 'true');
+    if (filters?.sort_by) query.append('sort_by', filters.sort_by);
+    if (filters?.sort_order) query.append('sort_order', filters.sort_order);
+    if (filters?.skip !== undefined) query.append('skip', filters.skip.toString());
+    if (filters?.limit !== undefined) query.append('limit', filters.limit.toString());
 
     const res = await fetch(`${API_BASE}/staff/complaints?${query.toString()}`, {
       headers: getAuthHeaders()
     });
-    if (!res.ok) throw new Error('Failed to load staff tickets');
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to load staff tickets');
+    }
     return res.json();
   },
 
@@ -225,7 +257,47 @@ export const api = {
       },
       body: JSON.stringify({ status, notes })
     });
-    if (!res.ok) throw new Error('Failed to update status');
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to update status');
+    }
+    return res.json();
+  },
+
+  async assignComplaint(id: number, departmentId?: number, staffId?: number, notes?: string, dueDate?: string) {
+    const res = await fetch(`${API_BASE}/staff/complaints/${id}/assign`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders()
+      },
+      body: JSON.stringify({
+        department_id: departmentId,
+        staff_id: staffId,
+        notes,
+        due_date: dueDate || undefined
+      })
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to assign ticket');
+    }
+    return res.json();
+  },
+
+  async addComplaintNote(id: number, note: string) {
+    const res = await fetch(`${API_BASE}/staff/complaints/${id}/notes`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders()
+      },
+      body: JSON.stringify({ note })
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to add note');
+    }
     return res.json();
   },
 
@@ -239,7 +311,10 @@ export const api = {
       headers: getAuthHeaders(),
       body: formData
     });
-    if (!res.ok) throw new Error('Failed to upload repair evidence');
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to upload repair evidence');
+    }
     return res.json();
   },
 
@@ -252,61 +327,192 @@ export const api = {
       },
       body: JSON.stringify({ severity_score: severity, safety_risk_score: safety, reason })
     });
-    if (!res.ok) throw new Error('Failed to override priority');
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to override priority');
+    }
     return res.json();
   },
 
   // Admin & Analytics
-  async getAnalyticsSummary() {
-    const res = await fetch(`${API_BASE}/analytics/summary`, {
+  async getAnalyticsSummary(dateFrom?: string, dateTo?: string) {
+    const query = new URLSearchParams();
+    if (dateFrom) query.append('date_from', dateFrom);
+    if (dateTo) query.append('date_to', dateTo);
+    const res = await fetch(`${API_BASE}/analytics/summary?${query.toString()}`, {
       headers: getAuthHeaders()
     });
     if (!res.ok) throw new Error('Failed to fetch analytics summary');
     return res.json();
   },
 
-  async getCategoryDistribution() {
-    const res = await fetch(`${API_BASE}/analytics/categories`, {
+  async getCategoryDistribution(dateFrom?: string, dateTo?: string) {
+    const query = new URLSearchParams();
+    if (dateFrom) query.append('date_from', dateFrom);
+    if (dateTo) query.append('date_to', dateTo);
+    const res = await fetch(`${API_BASE}/analytics/categories?${query.toString()}`, {
       headers: getAuthHeaders()
     });
     if (!res.ok) throw new Error('Failed to fetch category distribution');
     return res.json();
   },
 
-  async getTrends() {
-    const res = await fetch(`${API_BASE}/analytics/trends`, {
+  async getStatusDistribution(dateFrom?: string, dateTo?: string) {
+    const query = new URLSearchParams();
+    if (dateFrom) query.append('date_from', dateFrom);
+    if (dateTo) query.append('date_to', dateTo);
+    const res = await fetch(`${API_BASE}/analytics/status-distribution?${query.toString()}`, {
+      headers: getAuthHeaders()
+    });
+    if (!res.ok) throw new Error('Failed to fetch status distribution');
+    return res.json();
+  },
+
+  async getPriorityDistribution(dateFrom?: string, dateTo?: string) {
+    const query = new URLSearchParams();
+    if (dateFrom) query.append('date_from', dateFrom);
+    if (dateTo) query.append('date_to', dateTo);
+    const res = await fetch(`${API_BASE}/analytics/priority-distribution?${query.toString()}`, {
+      headers: getAuthHeaders()
+    });
+    if (!res.ok) throw new Error('Failed to fetch priority distribution');
+    return res.json();
+  },
+
+  async getTrends(daysCount = 7) {
+    const res = await fetch(`${API_BASE}/analytics/trends?days_count=${daysCount}`, {
       headers: getAuthHeaders()
     });
     if (!res.ok) throw new Error('Failed to fetch trends');
     return res.json();
   },
 
-  async getHotspots() {
-    const res = await fetch(`${API_BASE}/analytics/hotspots`, {
+  async getHotspots(dateFrom?: string, dateTo?: string) {
+    const query = new URLSearchParams();
+    if (dateFrom) query.append('date_from', dateFrom);
+    if (dateTo) query.append('date_to', dateTo);
+    const res = await fetch(`${API_BASE}/analytics/hotspots?${query.toString()}`, {
       headers: getAuthHeaders()
     });
     if (!res.ok) throw new Error('Failed to fetch hotspots');
     return res.json();
   },
 
-  async listDepartments() {
-    const res = await fetch(`${API_BASE}/admin/departments`, {
+  async listDepartments(includeInactive = false) {
+    const res = await fetch(`${API_BASE}/admin/departments?include_inactive=${includeInactive}`, {
       headers: getAuthHeaders()
     });
     if (!res.ok) throw new Error('Failed to load departments');
     return res.json();
   },
 
-  async assignComplaint(id: number, departmentId?: number, staffId?: number, notes?: string) {
-    const res = await fetch(`${API_BASE}/admin/complaints/${id}/assign`, {
+  async createDepartment(dept: { name: string; code: string; description?: string; contact_email?: string; icon?: string }) {
+    const res = await fetch(`${API_BASE}/admin/departments`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         ...getAuthHeaders()
       },
-      body: JSON.stringify({ department_id: departmentId, staff_id: staffId, notes })
+      body: JSON.stringify(dept)
     });
-    if (!res.ok) throw new Error('Failed to assign ticket');
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to create department');
+    }
+    return res.json();
+  },
+
+  async updateDepartment(id: number, dept: any) {
+    const res = await fetch(`${API_BASE}/admin/departments/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders()
+      },
+      body: JSON.stringify(dept)
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to update department');
+    }
+    return res.json();
+  },
+
+  async deactivateDepartment(id: number) {
+    const res = await fetch(`${API_BASE}/admin/departments/${id}/deactivate`, {
+      method: 'PATCH',
+      headers: getAuthHeaders()
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to deactivate department');
+    }
+    return res.json();
+  },
+
+  async listUsers(role?: string) {
+    const query = role ? `?role=${role}` : '';
+    const res = await fetch(`${API_BASE}/admin/users${query}`, {
+      headers: getAuthHeaders()
+    });
+    if (!res.ok) throw new Error('Failed to load users');
+    return res.json();
+  },
+
+  async listStaff(departmentId?: number) {
+    const query = departmentId ? `?department_id=${departmentId}` : '';
+    const res = await fetch(`${API_BASE}/admin/staff${query}`, {
+      headers: getAuthHeaders()
+    });
+    if (!res.ok) throw new Error('Failed to load staff list');
+    return res.json();
+  },
+
+  async createUser(data: any) {
+    const res = await fetch(`${API_BASE}/admin/users`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders()
+      },
+      body: JSON.stringify(data)
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to create user');
+    }
+    return res.json();
+  },
+
+  async updateUserStatus(id: number, isActive: boolean) {
+    const res = await fetch(`${API_BASE}/admin/users/${id}/status`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders()
+      },
+      body: JSON.stringify({ is_active: isActive })
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to update user status');
+    }
+    return res.json();
+  },
+
+  async assignStaffDepartment(id: number, departmentId: number | null) {
+    const res = await fetch(`${API_BASE}/admin/users/${id}/department`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders()
+      },
+      body: JSON.stringify({ department_id: departmentId })
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to assign department');
+    }
     return res.json();
   },
 
@@ -334,15 +540,46 @@ export const api = {
     return res.json();
   },
 
-  async getAuditLogs() {
-    const res = await fetch(`${API_BASE}/admin/audit-logs`, {
+  async getAuditLogs(limit = 100) {
+    const res = await fetch(`${API_BASE}/admin/audit-logs?limit=${limit}`, {
       headers: getAuthHeaders()
     });
     if (!res.ok) throw new Error('Failed to load audit logs');
     return res.json();
   },
 
-  exportCsvUrl() {
-    return `${API_BASE}/admin/export-csv`;
+  async downloadExportCsv(dateFrom?: string, dateTo?: string) {
+    const query = new URLSearchParams();
+    if (dateFrom) query.append('date_from', dateFrom);
+    if (dateTo) query.append('date_to', dateTo);
+    const res = await fetch(`${API_BASE}/admin/export-csv?${query.toString()}`, {
+      headers: getAuthHeaders()
+    });
+    if (!res.ok) throw new Error('Failed to export CSV');
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `civicfix_complaints_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  },
+
+  async updateProfile(data: { full_name?: string; phone?: string; role?: string }) {
+    const res = await fetch(`${API_BASE}/auth/profile`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders()
+      },
+      body: JSON.stringify(data)
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to update profile');
+    }
+    return res.json();
   }
 };

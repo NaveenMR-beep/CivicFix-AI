@@ -246,6 +246,10 @@ def create_complaint(
 
     img_link = payload.image_url or payload.image_path
 
+    days_map = {"Critical": 1, "High": 2, "Medium": 5, "Low": 10}
+    days = days_map.get(level, 5)
+    due_date = datetime.datetime.utcnow() + datetime.timedelta(days=days)
+
     new_complaint = Complaint(
         tracking_number=tracking_num,
         reporter_id=current_user.id if current_user else None,
@@ -267,7 +271,8 @@ def create_complaint(
         priority_level=level,
         priority_explanation=explanation,
         assigned_department_id=dept_id,
-        status="submitted"
+        status="submitted",
+        due_date=due_date
     )
 
     db.add(new_complaint)

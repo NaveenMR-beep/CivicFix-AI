@@ -80,24 +80,79 @@ CivicFix AI is a complete, full-stack, responsive, and bilingual (English & Kann
 
 ---
 
+## 🏢 Phase 3: Municipal Staff and Admin Dashboard
+
+### 1. User Roles & Permission Enforcement (RBAC)
+- **Role-Based Access Control**:
+  - `citizen`: Can report problems and track their own submissions. Blocked from staff/admin endpoints (HTTP 403).
+  - `staff`: Can view and manage complaints assigned to them or their department. Blocked from managing unrelated departments without permission (HTTP 403).
+  - `admin`: Global authority to manage all complaints, users, staff assignments, departments, priority formula weights, and audit logs.
+- **Account Security**: Users cannot elevate their own role through profile updates. Only administrators can assign roles or departments.
+
+### 2. Municipal Staff Operations Portal (`StaffDashboardPage`)
+- **Real Database KPI Statistics**:
+  - Total assigned complaints
+  - New complaints awaiting review (`submitted`, `under_review`)
+  - High-priority complaints (`Critical`, `High`)
+  - Complaints in progress
+  - Resolved complaints
+  - Overdue complaints (SLA deadline tracking)
+- **Navigation Tabs**:
+  - `Dashboard`: Operations overview, overdue alerts, and urgent review queue.
+  - `Manage Complaints`: Searchable, filterable complaint table with pagination, sorting by submission date, priority, or status.
+  - `Map View`: Interactive Leaflet work order map with category and status filters.
+  - `My Assigned Work`: Complaints assigned specifically to the logged-in staff member.
+  - `Profile`: View and edit staff details (name, phone, department).
+  - `Logout`: Secure session termination.
+- **Complaint Details Modal & Action Center**:
+  - Original citizen photograph & interactive mini location map marker.
+  - Status history timeline showing actor, timestamp, previous status, and notes.
+  - Quick status actions: *Under Review*, *In Progress*, *Resolved*.
+  - Department and staff assignment with custom SLA due date.
+  - Internal staff notes.
+  - Rule-based priority explanation & manual priority calibration with recorded reason.
+  - After-repair photograph upload with automated repair verification.
+
+### 3. Municipal Administrator Console (`AdminDashboardPage`)
+- **Citywide Analytics & Reports**:
+  - Real-time complaints by category, lifecycle status, priority level, and recurring hotspots.
+  - 7-day complaint reporting vs resolution velocity trends.
+  - Date-range filtering across all charts and metrics.
+  - Sanitized CSV data export respecting privacy policies (omits passwords, tokens, and citizen private numbers).
+- **Department Management**:
+  - View all departments (Roads, Solid Waste, Streetlight, Water Supply, Administration).
+  - Create new departments with custom codes and contact emails.
+  - Edit department details or deactivate departments safely.
+- **User & Staff Management**:
+  - Searchable list of all registered accounts (Citizens, Staff, Admins).
+  - Register new municipal officer accounts with assigned departments.
+  - Activate or deactivate accounts safely (with self-deactivation protection for admins).
+  - Reassign staff members across departments.
+- **Priority Weights Calibration**:
+  - Mathematical sliders for Severity ($W_1$), Safety Risk ($W_2$), and Community Impact ($W_3$).
+  - Enforces $\sum W = 1.0$ and triggers live recalculation across all open city complaints.
+- **Immutable Audit Trail**:
+  - Full audit logging of status changes, assignments, department modifications, user status changes, and priority calibrations with timestamps.
+
+---
+
 ## 🛠️ Technology Stack
 
 | Component | Technology |
 |---|---|
-| **Frontend** | React 19, TypeScript, Vite, Tailwind CSS, Lucide Icons, Leaflet, Canvas Confetti |
+| **Frontend** | React 19, TypeScript, Vite, Tailwind CSS, Lucide Icons, Leaflet, Recharts, Canvas Confetti |
 | **Backend** | Python 3.10+, FastAPI, Uvicorn, SQLAlchemy, Pydantic v2 |
 | **Database** | PostgreSQL with zero-config SQLite development fallback |
 | **Migrations** | Alembic |
 | **Authentication** | JWT (JSON Web Tokens) with passlib / bcrypt |
 | **Image Processing** | Pillow (PIL), OpenCV headless |
-| **Testing** | Pytest, HTTPX / FastAPI TestClient |
+| **Testing** | Pytest, HTTPX / FastAPI TestClient (25 automated test scenarios) |
 
 ---
 
 ## 🚀 Setup and Run Instructions
 
 ### 1. Database Configuration (PostgreSQL / SQLite)
-
 The backend connects to PostgreSQL via `DATABASE_URL` in `backend/.env`. If PostgreSQL is not running or unconfigured, it automatically falls back to local SQLite (`civicfix.db`).
 
 To configure PostgreSQL:
@@ -141,11 +196,11 @@ npm install
 # Start Vite development server
 npm run dev
 ```
-- Citizen Web Portal: `http://localhost:5173/`
+- Web Application: `http://localhost:5173/`
 
 ### 4. Automated Testing
 
-Run the comprehensive 13-scenario test suite verifying authentication, photo upload validation, duplicate checks, privacy permissions, and timeline tracking:
+Run the full 25-scenario automated test suite verifying citizen workflows, RBAC authorization, staff operations, department management, repair photo validation, and analytics:
 
 ```bash
 cd backend

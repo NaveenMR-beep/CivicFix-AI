@@ -1,6 +1,6 @@
 import datetime
 from collections import defaultdict
-from typing import List
+from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from app.database import get_db
@@ -12,14 +12,34 @@ from app.auth import require_staff_or_admin
 
 router = APIRouter(prefix="/analytics", tags=["Analytics & Reporting"])
 
+
+def filter_by_date(query, date_from: Optional[str], date_to: Optional[str]):
+    if date_from:
+        try:
+            d_from = datetime.datetime.fromisoformat(date_from)
+            query = query.filter(Complaint.created_at >= d_from)
+        except ValueError:
+            pass
+    if date_to:
+        try:
+            d_to = datetime.datetime.fromisoformat(date_to)
+            query = query.filter(Complaint.created_at <= d_to)
+        except ValueError:
+            pass
+    return query
+
+
 @router.get("/summary", response_model=AnalyticsSummaryOut)
 def get_analytics_summary(
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
     db: Session = Depends(get_db),
     user = Depends(require_staff_or_admin)
 ):
-    complaints = db.query(Complaint).all()
+    query = filter_by_date(db.query(Complaint), date_from, date_to)
+    complaints = query.all()
     total = len(complaints)
-    
+
     pending_statuses = {"submitted", "under_review", "assigned"}
     pending = sum(1 for c in complaints if c.status in pending_statuses)
     in_progress = sum(1 for c in complaints if c.status == "in_progress")
@@ -45,16 +65,20 @@ def get_analytics_summary(
         "resolution_rate_percent": res_rate
     }
 
+
 @router.get("/categories", response_model=List[CategoryCountOut])
 def get_category_distribution(
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
     db: Session = Depends(get_db),
     user = Depends(require_staff_or_admin)
 ):
-    complaints = db.query(Complaint).all()
+    query = filter_by_date(db.query(Complaint), date_from, date_to)
+    complaints = query.all()
     cat_counts = defaultdict(lambda: {"count": 0, "resolved": 0, "pending": 0})
 
     for c in complaints:
-        cat = c.category
+        cat = c.category or "other"
         cat_counts[cat]["count"] += 1
         if c.status == "resolved":
             cat_counts[cat]["resolved"] += 1
@@ -71,17 +95,51 @@ def get_category_distribution(
         for cat, data in cat_counts.items()
     ]
 
+
+@router.get("/status-distribution")
+def get_status_distribution(
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    db: Session = Depends(get_db),
+    user = Depends(require_staff_or_admin)
+) -> List[Dict[str, Any]]:
+    query = filter_by_date(db.query(Complaint), date_from, date_to)
+    complaints = query.all()
+    counts = defaultdict(int)
+    for c in complaints:
+        counts[c.status] += 1
+
+    all_statuses = ["submitted", "under_review", "assigned", "in_progress", "resolved", "rejected"]
+    return [{"status": s, "count": counts.get(s, 0)} for s in all_statuses]
+
+
+@router.get("/priority-distribution")
+def get_priority_distribution(
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    db: Session = Depends(get_db),
+    user = Depends(require_staff_or_admin)
+) -> List[Dict[str, Any]]:
+    query = filter_by_date(db.query(Complaint), date_from, date_to)
+    complaints = query.all()
+    counts = defaultdict(int)
+    for c in complaints:
+        counts[c.priority_level] += 1
+
+    levels = ["Critical", "High", "Medium", "Low"]
+    return [{"priority": lvl, "count": counts.get(lvl, 0)} for lvl in levels]
+
+
 @router.get("/trends", response_model=List[TrendDataPoint])
 def get_complaint_trends(
+    days_count: int = 7,
     db: Session = Depends(get_db),
     user = Depends(require_staff_or_admin)
 ):
-    # Trends for past 7 days
     today = datetime.datetime.utcnow().date()
-    days = [today - datetime.timedelta(days=i) for i in reversed(range(7))]
-    
-    complaints = db.query(Complaint).all()
+    days = [today - datetime.timedelta(days=i) for i in reversed(range(days_count))]
 
+    complaints = db.query(Complaint).all()
     trend_map = {d.strftime("%b %d"): {"reported": 0, "resolved": 0} for d in days}
 
     for c in complaints:
@@ -99,13 +157,17 @@ def get_complaint_trends(
         for date_str, vals in trend_map.items()
     ]
 
+
 @router.get("/hotspots", response_model=List[HotspotLocation])
 def get_recurring_hotspots(
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
     db: Session = Depends(get_db),
     user = Depends(require_staff_or_admin)
 ):
-    complaints = db.query(Complaint).all()
-    # Group by rounded lat/lon to ~3 decimal places (~110 meters)
+    query = filter_by_date(db.query(Complaint), date_from, date_to)
+    complaints = query.all()
+
     clusters = defaultdict(list)
     for c in complaints:
         key = (round(c.latitude, 3), round(c.longitude, 3))
@@ -113,14 +175,13 @@ def get_recurring_hotspots(
 
     hotspots = []
     for (lat, lon), group in clusters.items():
-        if len(group) >= 1:  # Show high-density complaint areas
+        if len(group) >= 1:
             crit_count = sum(1 for c in group if c.priority_level == "Critical")
-            # Determine dominant category
             cat_counts = defaultdict(int)
             for c in group:
                 cat_counts[c.category] += 1
             dom_cat = max(cat_counts, key=cat_counts.get) if cat_counts else "General"
-            
+
             hotspots.append({
                 "address": group[0].address or f"Area near {lat}, {lon}",
                 "latitude": lat,

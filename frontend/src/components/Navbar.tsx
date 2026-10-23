@@ -78,7 +78,6 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
               Problems Near Me
             </button>
 
-            {/* Staff / Admin portals if privileged */}
             {user?.role === 'staff' && (
               <button
                 onClick={() => handleNav('staff-dashboard')}
@@ -90,14 +89,24 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
               </button>
             )}
             {user?.role === 'admin' && (
-              <button
-                onClick={() => handleNav('admin-dashboard')}
-                className={`px-3.5 py-2 rounded-xl transition-colors ${
-                  currentView === 'admin-dashboard' ? 'bg-purple-50 text-purple-700 font-bold' : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Admin Portal
-              </button>
+              <>
+                <button
+                  onClick={() => handleNav('staff-dashboard')}
+                  className={`px-3.5 py-2 rounded-xl transition-colors ${
+                    currentView === 'staff-dashboard' ? 'bg-indigo-50 text-indigo-700 font-bold' : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Staff Portal
+                </button>
+                <button
+                  onClick={() => handleNav('admin-dashboard')}
+                  className={`px-3.5 py-2 rounded-xl transition-colors ${
+                    currentView === 'admin-dashboard' ? 'bg-purple-50 text-purple-700 font-bold' : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Admin Portal
+                </button>
+              </>
             )}
           </nav>
 
@@ -187,6 +196,28 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
             >
               Problems Near Me
             </button>
+
+            {(user?.role === 'staff' || user?.role === 'admin') && (
+              <button
+                onClick={() => handleNav('staff-dashboard')}
+                className={`text-left px-4 py-2.5 rounded-xl text-sm font-bold ${
+                  currentView === 'staff-dashboard' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                Staff Portal
+              </button>
+            )}
+
+            {user?.role === 'admin' && (
+              <button
+                onClick={() => handleNav('admin-dashboard')}
+                className={`text-left px-4 py-2.5 rounded-xl text-sm font-bold ${
+                  currentView === 'admin-dashboard' ? 'bg-purple-50 text-purple-700' : 'text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                Admin Portal
+              </button>
+            )}
 
             {isAuthenticated && user && (
               <div className="pt-2 mt-2 border-t border-slate-100 flex items-center justify-between px-4">
